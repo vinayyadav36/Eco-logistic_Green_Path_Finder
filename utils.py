@@ -217,7 +217,6 @@ INDIA_CITY_COORDS: dict[str, tuple[float, float]] = {
     "moradabad": (28.8386, 78.7733),
     "jabalpur": (23.1815, 79.9864),
     "gwalior": (26.2183, 78.1828),
-    "vijayawada": (16.5062, 80.6480),
     "jammu": (32.7266, 74.8570),
     "mangalore": (12.9141, 74.8560),
     "erode": (11.3410, 77.7172),

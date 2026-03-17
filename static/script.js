@@ -426,11 +426,16 @@ async function handleExport() {
     return;
   }
 
+  // Use the filename from Content-Disposition header if available, otherwise generate one
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename=(.+\.csv)/);
+  const filename = match ? match[1] : `eco_logistics_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.csv`;
+
   const blob = await res.blob();
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `eco_logistics_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
