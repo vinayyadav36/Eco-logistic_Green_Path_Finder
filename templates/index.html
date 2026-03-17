@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Eco-Logistics Green Path Finder — Real CO₂ emissions, Green Score & route planning for India 2026" />
+  <meta name="theme-color" content="#166534" />
+
+  <title>Eco-Logistics Green Path Finder 🌿 | India 2026</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
+</head>
+<body>
+
+<!-- ============================================================
+     HERO / HEADER
+     ============================================================ -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-badge">🌿 India 2026 &bull; Real Data &bull; AI Green Score</div>
+    <h1>🌍 Eco-Logistics<br>Green Path Finder</h1>
+    <p class="subtitle">
+      Enter any two Indian cities and instantly compare CO₂ emissions, cost, time, and
+      sustainability for every transport mode — with an AI-powered Green Score.
+    </p>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="value">8</span>
+        <span class="label">Transport Modes</span>
+      </div>
+      <div class="hero-stat">
+        <span class="value">0.008</span>
+        <span class="label">kg CO₂/km (Metro)</span>
+      </div>
+      <div class="hero-stat">
+        <span class="value">2026</span>
+        <span class="label">India Emission Factors</span>
+      </div>
+      <div class="hero-stat">
+        <span class="value">100%</span>
+        <span class="label">Real Route Data</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================
+     SEARCH FORM
+     ============================================================ -->
+<section class="search-section">
+  <div class="search-card">
+
+    {% if not api_key_set %}
+    <div class="api-notice">
+      ⚠️ <strong>No Google Maps API key detected.</strong>
+      The app will use city-coordinate fallback for distance calculations.
+      Add your key to <code>.env</code> for real route data.
+    </div>
+    {% endif %}
+
+    <h2>🗺️ Plan Your Green Journey</h2>
+
+    <form id="routeForm" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="origin">📍 Origin City</label>
+          <input
+            type="text"
+            id="origin"
+            name="origin"
+            class="form-input"
+            placeholder="e.g. Mumbai"
+            autocomplete="off"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="destination">🏁 Destination City</label>
+          <input
+            type="text"
+            id="destination"
+            name="destination"
+            class="form-input"
+            placeholder="e.g. Pune"
+            autocomplete="off"
+            required
+          />
+        </div>
+      </div>
+
+      <div id="errorAlert" class="alert alert-error hidden">
+        <span>⚠️</span>
+        <span id="errorMsg"></span>
+      </div>
+
+      <div class="action-row">
+        <button type="submit" id="calcBtn" class="btn btn-primary">
+          🔍 Find Green Routes
+        </button>
+        <button type="button" id="exportBtn" class="btn btn-secondary" disabled>
+          📥 Export CSV
+        </button>
+      </div>
+    </form>
+
+    <!-- Loading state -->
+    <div id="loading" class="loading-overlay">
+      <span class="spinner" style="border-color:rgba(22,163,74,.3);border-top-color:#16a34a;width:32px;height:32px;border-width:3px;"></span>
+      <p style="margin-top:.75rem;color:#374151;font-weight:600;">Calculating eco-routes…</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     RESULTS SECTION (hidden until calculation complete)
+     ============================================================ -->
+<main id="resultsSection" class="results-section">
+  <div class="container">
+
+    <!-- Section header -->
+    <div class="section-header fade-in">
+      <h2>📊 Route Eco-Analysis</h2>
+      <p>Sorted by Green Score — highest (most sustainable) first</p>
+    </div>
+
+    <!-- ---- KPI Grid ---------------------------------------- -->
+    <div class="kpi-grid fade-in">
+      <div class="kpi-card">
+        <div class="kpi-label">🏆 Greenest Mode</div>
+        <div class="kpi-value kpi-green" id="kpiBestMode" style="font-size:1.1rem;">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">📏 Route Distance</div>
+        <div class="kpi-value kpi-blue" id="kpiDistance">—</div>
+        <div class="kpi-unit">km (by road)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">💨 Min CO₂</div>
+        <div class="kpi-value kpi-green" id="kpiMinCO2">—</div>
+        <div class="kpi-unit">kg CO₂</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">🌿 Top Green Score</div>
+        <div class="kpi-value kpi-teal" id="kpiTopScore">—</div>
+        <div class="kpi-unit">out of 100</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">♻️ CO₂ Savings</div>
+        <div class="kpi-value kpi-orange" id="kpiSavings">—</div>
+        <div class="kpi-unit">vs highest emitter</div>
+      </div>
+    </div>
+
+    <!-- ---- Result Cards ------------------------------------ -->
+    <div id="resultsGrid" class="results-grid"></div>
+
+    <!-- ---- Map --------------------------------------------- -->
+    <section class="map-section fade-in">
+      <div class="map-header">
+        🗺️ Route Map (Road Path)
+      </div>
+      <div id="map"></div>
+    </section>
+
+    <!-- ---- Charts ------------------------------------------ -->
+    <section class="charts-section fade-in">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">💨 CO₂ Emissions by Mode</div>
+          <div class="chart-container">
+            <div id="co2Chart"></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">🌿 Green Score Comparison</div>
+          <div class="chart-container">
+            <div id="greenScoreChart"></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">⏱️ Travel Duration</div>
+          <div class="chart-container">
+            <div id="timeChart"></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">💰 Cost vs CO₂ Scatter</div>
+          <div class="chart-container">
+            <div id="costCO2Chart"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Full Comparison Table --------------------------- -->
+    <section class="table-section fade-in">
+      <div class="table-header">
+        <span class="table-title">📋 Full Comparison Table</span>
+        <button class="btn btn-secondary btn-icon" onclick="handleExport()" title="Export CSV">
+          📥 Export CSV
+        </button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Distance</th>
+              <th>Duration</th>
+              <th>CO₂</th>
+              <th>Fuel / Energy</th>
+              <th>Cost (₹)</th>
+              <th>Green Score</th>
+              <th>Trees / yr</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- Carbon Offset ----------------------------------- -->
+    <section class="offset-section fade-in">
+      <div class="offset-icon">🌳</div>
+      <div class="offset-content">
+        <h3>Carbon Offset Recommendation</h3>
+        <p>
+          Plant <strong class="offset-trees" id="offsetTrees">—</strong> trees
+          per year to offset the greenest option's emissions.
+        </p>
+        <p id="offsetDesc" style="margin-top:.4rem;font-size:.88rem;"></p>
+      </div>
+    </section>
+
+  </div><!-- /container -->
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer>
+  <p>
+    🌿 Eco-Logistics Green Path Finder &mdash; India 2026 &nbsp;|&nbsp;
+    Emission factors: MoRTH, IPCC AR6, CEEW &nbsp;|&nbsp;
+    Built with <a href="https://flask.palletsprojects.com/" target="_blank" rel="noopener">Flask</a> +
+    <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> +
+    <a href="https://plotly.com/javascript/" target="_blank" rel="noopener">Plotly</a>
+  </p>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqZk=" crossorigin=""></script>
+
+<!-- Plotly.js (CDN) -->
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+
+<!-- App scripts -->
+<script src="/static/charts.js"></script>
+<script src="/static/script.js"></script>
+
+</body>
+</html>
